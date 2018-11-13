@@ -1,0 +1,17 @@
+To ${CONTACT_NAME},
+
+Facebook (FB):
+Closing Price: ${FB_LP}
+Dollar Change: ${F_P_M}${FB_D}
+Percentage Change: ${F_P_M}${FB_PERC}
+
+
+KLAC Tencor (KLAC):
+Closing Price: ${T_LP}
+Dollar Change: ${K_P_M}${T_D}
+Percentage Change: ${K_P_M}${T_PERC}
+
+
+
+------
+Sent from Python Stock Market Notifier V1.0
