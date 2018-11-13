@@ -1,2 +1,2 @@
 # stock-prices
-Checks the NASDAQ website for stock prices and emails them to a list of people.
+Checks the NASDAQ website for closing stock prices and emails them to a list of people.
