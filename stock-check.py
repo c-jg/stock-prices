@@ -1,11 +1,8 @@
-from urllib.request import urlopen as uReq
-from bs4 import BeautifulSoup as soup
-import requests, smtplib, time
+import requests, smtplib
+from bs4 import BeautifulSoup
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from string import Template
 
-# Look at contacts.txt and get names, emails
 def get_contacts(filename):
     names = []
     emails = []
@@ -15,112 +12,73 @@ def get_contacts(filename):
             emails.append(a_contact.split()[1])
     return names, emails
 
-def read_template(filename):
-    with open(filename, 'r', encoding='utf-8') as template_file:
-        template_file_content = template_file.read()
-    return Template(template_file_content)
+def get_stocks(filename):
+    stocks = []
+    with open(filename, mode='r', encoding='utf-8') as stocks_file:
+        for a_stock in stocks_file:
+            stocks.append(a_stock.split()[0])
+    return stocks
 
+from_addr = '---- YOUR EMAIL THAT WILL SEND MESSAGE ----'
 names, emails = get_contacts('contacts.txt')
-message_template = read_template('body.txt')
+stocks = get_stocks('stocks.txt')
+text_file = 'textfile.txt'
 
-# To 
-to_file = open('contacts.txt','r')
-to_text = to_file.read().strip()
-to_file.close()
-to = to_text
+with open(text_file, "w") as my_file:
+        my_file.write('')
 
-first_url = 'https://www.nasdaq.com/symbol/fb'
-second_url = 'https://www.nasdaq.com/symbol/klac'
+for stock in stocks:
 
-# FB
-# Open connection and grab pages
-fb_stock = uReq(first_url)
-fb_page = fb_stock.read()
-fb_stock.close()
+    req = requests.get('https://www.nasdaq.com/symbol/' + str(stock))
+    site = req.text
+    html = BeautifulSoup(site, "html.parser")
 
-page_soup = soup(fb_page, "html.parser")
+    symbol = html.title.get_text().split()
 
-# Closing price
-fb_prices = page_soup.find("div",{"id":"qwidget_lastsale"})
-facebook_price = fb_prices.get_text()
+    gl = html.find("div", {"id":"qwidget-arrow"})
+    arrow = gl.div['class']
+    color = arrow[1]
+    gain = 'green' in color
+    if gain:
+        ar = '+'
+    else:
+        ar = '-'
 
-# Dollar change
-fb_dollars = page_soup.find("div",{"id":"qwidget_netchange"})
-facebook_dollars = fb_dollars.get_text()
+    find_price = html.find("div",{"id":"qwidget_lastsale"})
+    price = find_price.get_text()
 
-# Percent change
-fb_percent = page_soup.find("div",{"id":"qwidget_percent"})
-facebook_percent = fb_percent.get_text()
+    find_dollar_change = html.find("div",{"id":"qwidget_netchange"})
+    dollars = find_dollar_change.get_text()
 
-#Gain/Loss
-fb_p_m = page_soup.find("div", {"id":"qwidget-arrow"})
-f_arrow = fb_p_m.div['class']
-color_ = f_arrow[1]
-f_gain = 'green' in color_
-if f_gain:
-    print('GAIN')
-    f_ar = '+'
-else:
-    print('LOSS')
-    f_ar = '-'
+    find_perc = html.find("div",{"id":"qwidget_percent"})
+    perc_change = find_perc.get_text()
+    
+    with open(text_file, "a") as my_file:
+        my_file.write(str(symbol[0]) + ':\n')
+        my_file.write(str(price) + '\n')
+        my_file.write(str(ar) + '$' + str(dollars) + '\n')
+        my_file.write(str(ar + perc_change) + '\n')
+        my_file.write('\n')
 
-# ------------------------------------------------------------------ #
-# ------------------------------------------------------------------ #
+txt_open = open(text_file, "r")
+content = txt_open.read()
 
-# KLAC
-# Open connection and grab pages
-klac_stock = uReq(second_url)
-klac_page = klac_stock.read()
-klac_stock.close()
-
-k_soup = soup(klac_page, "html.parser")
-
-# Last sale price
-klac_prices = k_soup.find("div",{"id":"qwidget_lastsale"})
-tencor_price = klac_prices.get_text()
-
-# Dollar change
-klac_dollars = k_soup.find("div",{"id":"qwidget_netchange"})
-tencor_dollars = klac_dollars.get_text()
-
-# Percent change
-klac_percent = k_soup.find("div",{"id":"qwidget_percent"})
-tencor_percent = klac_percent.get_text()
-
-#Gain/Loss
-klac_p_m = k_soup.find("div", {"id":"qwidget-arrow"})
-k_arrow = klac_p_m.div['class']
-k_color = k_arrow[1]
-k_gain = 'green' in k_color
-if k_gain:
-    print('GAIN')
-    k_ar = '+'
-else:
-    print('LOSS')
-    k_ar = '-'
-
-
-# ------------------- E-Mail --------------------------------
-from_address = "XXXXXXX@XXXXXXXX.com"
-
-# For each contact, send the email:
 for name, email in zip(names, emails):
-    conn = smtplib.SMTP('smtp.gmail.com', 587) # SMTP address and port
-    conn.ehlo() # Start connection
+    conn = smtplib.SMTP('smtp.gmail.com', 587)
+    conn.ehlo()
     conn.starttls()
-    conn.login(from_address, 'XXXXXXXXXXXXXXXX')
+    conn.login(from_addr, '---- GMAIL ONE-TIME PASSWORD ----')
     msg = MIMEMultipart()
-    # add in the actual person name to the message template
-    message = message_template.substitute(CONTACT_NAME=name.title(),FB_LP=facebook_price,
-    F_P_M=f_ar,FB_D=facebook_dollars,FB_PERC=facebook_percent,T_LP=tencor_price,
-    K_P_M=k_ar,T_D=tencor_dollars,T_PERC=tencor_percent)
-        
-    msg['From'] = from_address
+
+    msg['From'] = from_addr
     msg['To'] = email
-    msg['Subject'] = "Stock Market Closing Results"
+    msg['Subject'] = 'Stock Market Closing Results'
+    message = str(content)
 
     msg.attach(MIMEText(message, 'plain'))
-    conn.sendmail(from_address, email, msg.as_string())
-    print('Sent notification emails to the following recipient:\n')
-    print(email)
+    conn.sendmail(from_addr, email, msg.as_string())
+
+    print('\nSent emails to: \n' + email)
 conn.quit()
+
+print('\nDone')
